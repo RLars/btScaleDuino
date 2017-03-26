@@ -1,8 +1,12 @@
 #include <HX711.h>
 #include <EEPROM.h>
 #include <Filters.h>
+#include <SoftwareSerial.h>
+
+SoftwareSerial BTserial(2, 3);
 
 #define DEBUG 1
+#define VERSION_STRING "0.01"
 
 // Scale Settings
 const int SCALE_DOUT_PIN = A1;
@@ -35,7 +39,7 @@ calibData cal;
 
 const float calibDefault = -294.0f;
 
-// Serial comm
+// BTserial comm
 const char EOS_CHAR = '_';
 const char CMD_TARE_CHAR = 't';
 const char CMD_STORE_CHAR = 's';
@@ -60,6 +64,9 @@ void setupBluetoothModule(void);
 
 // Functions
 void setup() {
+  Serial.begin(9600);
+  Serial.println("btScaleDuino v" VERSION_STRING);
+  
   setupBluetoothModule();
 
   loadCalib();
@@ -79,9 +86,9 @@ void loop() {
   {
     //float meanVal = calcMean();
     float meanVal = lowpassFilter.output();
-    Serial.print(CMD_VALUE_CHAR);
-    Serial.print(String(meanVal, 2));
-    Serial.print(EOS_CHAR);
+    BTserial.print(CMD_VALUE_CHAR);
+    BTserial.print(String(meanVal, 2));
+    BTserial.print(EOS_CHAR);
     lastTimeUpdate = currentMs;
   }
 
@@ -93,14 +100,14 @@ void loop() {
 
 
 void setupBluetoothModule(void) {
-  Serial.begin(9600);
-  //Serial.println("AT+BAUD8");
-  //Serial.begin(115200);
-  Serial.println("AT+NAME=BtScale=");
-  String reply = Serial.readString();
+  BTserial.begin(9600);
+  //BTserial.println("AT+BAUD8");
+  //BTserial.begin(115200);
+  BTserial.println("AT+NAME=BtScale=");
+  String reply = BTserial.readString();
   // delay(1500);
-  // Serial.println("AT+PIN0000");
-  // reply = Serial.readString();
+  // BTserial.println("AT+PIN0000");
+  // reply = BTserial.readString();
   // delay(1500);
 }
 
@@ -115,22 +122,22 @@ unsigned char bufIdx;
 
 void receiveCommands(void) {
   // check for new character on console
-  if (Serial.available() > 0) {
+  if (BTserial.available() > 0) {
     // read the incoming byte:
-    unsigned char incomingByte = Serial.read();
+    unsigned char incomingByte = BTserial.read();
 
     if (REC_STATE_IDLE == state) {
 #if DEBUG
-      Serial.print("CMD received: ");
-      Serial.println(incomingByte, DEC);
+      BTserial.print("CMD received: ");
+      BTserial.println(incomingByte, DEC);
 #endif
       switch (incomingByte) {
         case CMD_TARE_CHAR:
-          // Serial.println("Executing tare command");
+          // BTserial.println("Executing tare command");
           scale.tare();
           break;
         case CMD_STORE_CHAR:
-          // Serial.println("Executing store command");
+          // BTserial.println("Executing store command");
           storeCalib();
           break;
         case CMD_CALIB_CHAR:
@@ -159,8 +166,8 @@ void receiveCommands(void) {
       {
         buf[bufIdx++] = incomingByte;
 #if DEBUG
-        Serial.print("Collecting...Next Byte: ");
-        Serial.println(incomingByte, DEC);
+        BTserial.print("Collecting...Next Byte: ");
+        BTserial.println(incomingByte, DEC);
 #endif
       }
     }
@@ -171,9 +178,9 @@ void receiveCommands(void) {
 }
 
 void printInfo(void) {
-  Serial.print(CMD_INFO_CHAR);
-  Serial.print(String(cal.value, 2));
-  Serial.print(EOS_CHAR);
+  BTserial.print(CMD_INFO_CHAR);
+  BTserial.print(String(cal.value, 2));
+  BTserial.print(EOS_CHAR);
 }
 
 float calcMean()
@@ -184,8 +191,8 @@ float calcMean()
   {
     meanVal = meanSum / (float)meanNumSamples;
 #if DEBUG
-    Serial.println(String(meanSum, 2));
-    Serial.println(meanNumSamples);
+    BTserial.println(String(meanSum, 2));
+    BTserial.println(meanNumSamples);
 #endif
   }
 
@@ -203,15 +210,15 @@ void addMeanSample(float val)
     meanNumSamples++;
 
 #if DEBUG
-    Serial.print(".");
-    Serial.println(String(val, 2));
+    BTserial.print(".");
+    BTserial.println(String(val, 2));
 #endif
   }
 }
 
 void setCalib(float val) {
-   Serial.print("Setting calibration value to: ");
-   Serial.println(String(val, 2));
+   BTserial.print("Setting calibration value to: ");
+   BTserial.println(String(val, 2));
   
   cal.value = val;
   cal.valid = validMagicVal;
@@ -221,13 +228,13 @@ void setCalib(float val) {
 
 void loadCalib() {
 #if DEBUG
-  Serial.println("Loading calibration value...");
+  BTserial.println("Loading calibration value...");
 #endif
   EEPROM.get(eeAddressCal, cal);
   if ( !( cal.valid == validMagicVal ) )
   {
 #if DEBUG
-    Serial.print("No calibration found. Using default: ");
+    BTserial.print("No calibration found. Using default: ");
 #endif
     cal.value = calibDefault;
     cal.valid = validMagicVal;
@@ -235,12 +242,12 @@ void loadCalib() {
   else
   {
 #if DEBUG
-    Serial.print("Calibration value found: ");
+    BTserial.print("Calibration value found: ");
 #endif
   }
 
 #if DEBUG
-  Serial.println(String(cal.value, 2));
+  BTserial.println(String(cal.value, 2));
 #endif
   scale.set_scale(cal.value);
 }
