@@ -6,6 +6,8 @@ HX711: https://cdn.sparkfun.com/datasheets/Sensors/ForceFlex/hx711_english.pdf
 
 HC-06 (HC-05 might also work with some modifications): https://www.olimex.com/Products/Components/RF/BLUETOOTH-SERIAL-HC-06/resources/hc06.pdf
 
+<img src="hardware/schematic_Steckplatine.png" height="400"/>
+
 # Android libraries used in this project
 http://playground.arduino.cc/Code/Filters
 https://github.com/bogde/HX711
